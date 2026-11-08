@@ -1,0 +1,33 @@
+name: Release
+
+# One release per change on main, so servers can use /releases/latest/download/ForceItemBattle.zip.
+# The pack and unicodeItems.json only match from the same commit, so they ship together.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ForceItemBattle.zip'
+      - 'FIB_Worldgen.zip'
+      - 'unicodeItems.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha1=$(sha1sum ForceItemBattle.zip | cut -d' ' -f1)
+          echo "$sha1" > ForceItemBattle.zip.sha1
+          version=$(sed 's/§.//g' ForceItemBattle/pack.mcmeta | grep -oP '\(\K[^)]+(?=\)\s*\[)|\[\K[^\]]+(?=\])' | paste -sd' ')
+          tag="pack-$(date -u +%Y%m%d)-${GITHUB_SHA::7}"
+          gh release create "$tag" ForceItemBattle.zip ForceItemBattle.zip.sha1 unicodeItems.json FIB_Worldgen.zip \
+            --title "Pack $version ($tag)" --latest \
+            --notes "resource-pack-sha1=$sha1"
